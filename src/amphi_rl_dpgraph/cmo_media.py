@@ -283,4 +283,3 @@ def apply_synthetic_replacement(text: str) -> str:
     t = replace_mrns_synthetic(t)
     t = replace_dates_synthetic(t)
     return t
-PY
