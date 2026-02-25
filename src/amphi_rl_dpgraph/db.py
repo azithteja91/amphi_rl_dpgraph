@@ -1,5 +1,3 @@
-%%bash
-cat > /content/amphi_rl_graph/amphi_rl_dpgraph/db.py <<'PY'
 from __future__ import annotations
 
 import sqlite3
@@ -45,4 +43,3 @@ def get_cross_modal_remask_count(conn: sqlite3.Connection) -> int:
     except Exception:
         pass
     return 0
-PY
