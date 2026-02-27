@@ -1,3 +1,6 @@
+
+
+```mermaid
 flowchart LR
 %% === Inputs ===
 A["Streaming Inputs\nText notes / ASR transcripts / Image proxies / Waveform headers / Audio features"] --> B
