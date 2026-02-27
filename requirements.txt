@@ -1,0 +1,12 @@
+# Core dependency (audit signing)
+cryptography>=41.0
+
+# Optional — uncomment to enable AUROC computation
+# scikit-learn>=1.3
+# numpy>=1.24
+
+# Optional — uncomment to enable the PPO neural-network policy
+# torch>=2.0
+
+# Optional — uncomment to enable the privacy-utility curve plot
+# matplotlib>=3.7
