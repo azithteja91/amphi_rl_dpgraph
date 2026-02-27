@@ -648,6 +648,62 @@ def _write_experiment_report(metrics_rows: List[dict], latency_rows: List[dict],
     (RESULTS_DIR / "EXPERIMENT_REPORT.md").write_text("\n".join(lines), encoding="utf-8")
 
 
+def _print_results(metrics_rows: List[dict], latency_rows: List[dict], remask_count: int) -> None:
+    """Print experiment results tables to stdout."""
+
+    def _sep(width: int) -> str:
+        return "-" * width
+
+    # ── Privacy-Utility Results ──────────────────────────────────────────
+    hdr1 = f"  {'Policy':<10} {'Leak Total':>10} {'Utility Proxy':>14} {'Mean Lat (ms)':>14} {'P90 Lat (ms)':>13}"
+    w1 = len(hdr1)
+    print("\n" + _sep(w1))
+    print("  PRIVACY-UTILITY RESULTS")
+    print(_sep(w1))
+    print(hdr1)
+    print(_sep(w1))
+    for r in metrics_rows:
+        print(
+            f"  {r['policy']:<10} {r['leak_total']:>10} {r['utility_proxy']:>14} "
+            f"{r['mean_latency_ms']:>14} {r['p90_latency_ms']:>13}"
+        )
+
+    # ── Leakage Breakdown ────────────────────────────────────────────────
+    hdr2 = f"  {'Policy':<10} {'Text':>8} {'ASR':>8} {'Image':>8} {'Waveform':>10} {'Audio':>8}"
+    w2 = len(hdr2)
+    print("\n" + _sep(w2))
+    print("  LEAKAGE BREAKDOWN  (avg PHI spans per event)")
+    print(_sep(w2))
+    print(hdr2)
+    print(_sep(w2))
+    for r in metrics_rows:
+        print(
+            f"  {r['policy']:<10} {r['leak_text_avg']:>8} {r['leak_asr_avg']:>8} "
+            f"{r['leak_image_avg']:>8} {r['leak_waveform_avg']:>10} {r['leak_audio_avg']:>8}"
+        )
+
+    # ── Latency Summary ──────────────────────────────────────────────────
+    hdr3 = f"  {'Policy':<10} {'Mean (ms)':>10} {'P50 (ms)':>10} {'P90 (ms)':>10}"
+    w3 = len(hdr3)
+    print("\n" + _sep(w3))
+    print("  LATENCY SUMMARY")
+    print(_sep(w3))
+    print(hdr3)
+    print(_sep(w3))
+    for r in latency_rows:
+        print(
+            f"  {r['policy']:<10} {round(float(r['mean_ms']), 3):>10} "
+            f"{round(float(r['p50_ms']), 3):>10} {round(float(r['p90_ms']), 3):>10}"
+        )
+
+    # ── Footer ───────────────────────────────────────────────────────────
+    footer = f"  Adaptive: cross-modal synergy triggered localized retokenization {remask_count} time(s)."
+    wf = max(w1, len(footer))
+    print("\n" + _sep(wf))
+    print(footer)
+    print(_sep(wf))
+
+
 def main() -> None:
     policies = ["raw", "weak", "pseudo", "redact", "adaptive"]
 
@@ -710,9 +766,9 @@ def main() -> None:
         pass
 
     _write_experiment_report(metrics_rows, latency_rows, remask_count)
+    _print_results(metrics_rows, latency_rows, remask_count)
 
     print("\nResults written to:", RESULTS_DIR)
-    print(f"\nCross-modal synergy triggered localized retokenization {remask_count} time(s).")
     print("\nOutputs:")
     print("  policy_metrics.csv")
     print("  latency_summary.csv")
