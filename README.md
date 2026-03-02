@@ -65,7 +65,7 @@ Outputs include:
 - `audit_log.jsonl`
 - `EXPERIMENT_REPORT.md`
 - `privacy_utility_curve.png`
-- sample_dag.png
+- sample_dag.png`
 
 All experiments are reproducible from source using synthetic data generated within the repository.
 
