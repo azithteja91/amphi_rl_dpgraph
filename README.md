@@ -79,6 +79,30 @@ python -m amphi_rl_dpgraph.run_demo
 
 Results are written to the `results/` directory.
 
+## Testing
+
+Run the test suite with verbose output:
+
+```bash
+pytest -vv
+```
+
+For explicit installation (recommended for notebooks/Colab):
+
+```bash
+pip install -e .
+pytest -vv
+```
+
+To generate a machine-readable report plus a markdown summary:
+
+```bash
+pytest -vv --junitxml .artifacts/pytest.xml
+python scripts/generate_test_report.py .artifacts/pytest.xml TEST_RESULTS.md
+```
+
+The latest checked-in summary is in `TEST_RESULTS.md`.
+
 ## Data Description
 
 This repository does not contain real clinical data, personal information, or protected health information.
