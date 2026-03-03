@@ -1,3 +1,5 @@
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/azithteja91/amphi_rl_dpgraph/blob/main/notebooks/demo_colab.ipynb)
+
 # Stateful Exposure-Aware De-Identification for Multimodal Streaming Data
 
 Research implementation of a stateful, risk-aware de-identification architecture for streaming multimodal systems.
