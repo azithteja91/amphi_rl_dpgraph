@@ -61,10 +61,10 @@ all = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/azithteja91/amphi_rl_dpgraph"
-Documentation = "https://github.com/azithteja91/amphi_rl_dpgraph#readme"
-"Bug Tracker" = "https://github.com/azithteja91/amphi_rl_dpgraph/issues"
-"Research Paper" = "https://github.com/azithteja91/amphi_rl_dpgraph/blob/main/patent"
+Homepage = "https://github.com/azithteja91/phi-exposure-guard"
+Documentation = "https://github.com/azithteja91/phi-exposure-guard#readme"
+"Bug Tracker" = "https://github.com/azithteja91/phi-exposure-guard/issues"
+"Research Paper" = "https://github.com/azithteja91/phi-exposure-guard/blob/main/patent"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
