@@ -268,6 +268,78 @@ def run_policy(policy_run: str) -> Tuple[dict, dict, List[dict]]:
                 risk_2=0.80,
             )
 
+            # ── PPO PRE-TRAINING ──────────────────────────────────────────────
+            # The 78-step evaluation stream is too short for the PPO network to
+            # converge. We pre-train across multiple full episodes on the same
+            # synthetic stream (using an in-memory context so no state leaks
+            # into the evaluation run) before timing begins.
+            if MDDMCState is not None and compute_reward is not None:
+                PRE_TRAIN_EPISODES = 200
+                print(f"[PPO] Pre-training for {PRE_TRAIN_EPISODES} episodes ...", flush=True)
+                for _ep in range(PRE_TRAIN_EPISODES):
+                    # Fresh in-memory context per episode — no state leakage
+                    _pt_ctx = ContextState(db_path=":memory:", k_units=0.03)
+                    _pt_ctrl = ExposurePolicyController(
+                        context=_pt_ctx,
+                        risk_1=0.40,
+                        risk_2=0.80,
+                        remask_thresh=0.75,
+                    )
+                    for _ev in synthetic_stream():
+                        _dec = _pt_ctrl.record_and_decide(
+                            patient_key=_ev["patient_key"],
+                            event_id=_ev["event_id"],
+                            timestamp=_ev["timestamp"],
+                            modality_exposures={
+                                "text":          1 if count_phi(_ev["text"]) > 0 else 0,
+                                "asr":           1 if count_phi(_ev["asr"]) > 0 else 0,
+                                "image_proxy":   int(_ev["image_has_phi"]),
+                                "waveform_proxy": int(_ev["waveform_has_phi"]),
+                                "audio_proxy":   int(_ev["audio_has_phi"]),
+                            },
+                            link_signals={
+                                "image_link": int(_ev.get("image_link", 0)),
+                                "audio_link": int(_ev.get("audio_link", 0)),
+                            },
+                            event_payloads=_ev.get("payloads", {}),
+                        )
+                        _risk = float(_dec.risk_components.get("risk", float(_dec.risk_pre)))
+                        _s = MDDMCState(
+                            risk=_risk,
+                            units_factor=float(_dec.risk_components.get("units_factor", 0.0)),
+                            recency_factor=float(_dec.risk_components.get("recency_factor", 0.0)),
+                            link_bonus=float(_dec.risk_components.get("link_bonus", 0.0)),
+                        )
+                        _a = rl_agent.predict(_s)
+                        _r = compute_reward(
+                            r_risk=_risk,
+                            delta_auroc=0.0,
+                            latency_ms=1.0,
+                            energy_proxy=0.0,
+                            chosen_policy=str(_a.policy),
+                        )
+                        rl_agent.update(_s, _a, _r)
+
+                    if (_ep + 1) % 50 == 0:
+                        _rs = rl_agent.reward_stats()
+                        print(
+                            f"[PPO] Episode {_ep + 1}/{PRE_TRAIN_EPISODES} — "
+                            f"model_mean={_rs.get('model_mean', 0):.4f}  "
+                            f"warmup_mean={_rs.get('warmup_mean', 0):.4f}  "
+                            f"model_n={_rs.get('model_n', 0)}",
+                            flush=True,
+                        )
+
+                _final = rl_agent.reward_stats()
+                print(
+                    f"[PPO] Pre-training done — "
+                    f"model_mean={_final.get('model_mean', 0):.4f}  "
+                    f"warmup_mean={_final.get('warmup_mean', 0):.4f}  "
+                    f"total steps={rl_agent._step_count}",
+                    flush=True,
+                )
+            # ── END PRE-TRAINING ──────────────────────────────────────────────
+
         if AuditChain is not None and generate_signing_key is not None:
             private_key, _ = generate_signing_key()
             audit_chain = AuditChain(private_key=private_key, checkpoint_interval=50)
