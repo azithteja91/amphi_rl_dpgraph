@@ -127,10 +127,13 @@ class _PolicyNet:
                         nn.Linear(32, 1),
                     )
 
-                def forward(self, x):
-                    lstm_out, _ = self.lstm(x)
+                def forward(self, x, hidden=None):
+                    # Accept optional hidden=(h_n, c_n) for stateful inference.
+                    # Returns (logits, value, new_hidden) so callers can
+                    # cache hidden state per patient across events.
+                    lstm_out, new_hidden = self.lstm(x, hidden)
                     h = lstm_out[:, -1, :]
-                    return self.policy_head(h), self.value_head(h)
+                    return self.policy_head(h), self.value_head(h), new_hidden
 
             self._torch = torch
             self.net = Net()
@@ -139,23 +142,29 @@ class _PolicyNet:
         except ImportError:
             self.available = False
 
-    def predict(self, vec: List[float]) -> Tuple[int, float, float]:
+    def predict(self, x, hidden=None):
+       
         if not self.available:
-            return _SYNTHETIC_IDX, 0.0, 0.0
+            return _SYNTHETIC_IDX, 0.0, 0.0, None
 
         import torch.nn.functional as F
 
-        x = self._torch.tensor([vec], dtype=self._torch.float32).unsqueeze(0)
-        with self._torch.no_grad():
-            logits, value = self.net(x)
+        if isinstance(x, self._torch.Tensor):
+            seq = x                                                    # (1,T,D)
+        else:
+            seq = self._torch.tensor([x], dtype=self._torch.float32).unsqueeze(0)  # (1,1,D)
 
-        probs = F.softmax(logits[0], dim=-1)
-        dist = self._torch.distributions.Categorical(probs)
+        with self._torch.no_grad():
+            logits, value, new_hidden = self.net(seq, hidden)
+
+        probs  = F.softmax(logits[0], dim=-1)
+        dist   = self._torch.distributions.Categorical(probs)
         action = dist.sample()
         return (
             int(action.item()),
             float(dist.log_prob(action).item()),
             float(value[0, 0].item()),
+            new_hidden,
         )
 
     def update(self, transitions: List[Transition], clip_eps: float = 0.2) -> float:
@@ -183,7 +192,7 @@ class _PolicyNet:
         advantages = rewards - old_vals
         advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
 
-        logits, values = self.net(states)
+        logits, values, _ = self.net(states)
         probs = F.softmax(logits, dim=-1)
         dist = self._torch.distributions.Categorical(probs)
         new_lp = dist.log_prob(actions)
@@ -242,6 +251,11 @@ class PPOAgent:
         self._last_value = 0.0
         self._last_action_idx = _SYNTHETIC_IDX
 
+        
+        self._WINDOW_SIZE: int = 8
+        self._state_windows: Dict[str, List[List[float]]] = {}
+        self._hidden_states: Dict[str, object] = {}
+
         if model_path and Path(model_path).exists():
             self._load(model_path)
 
@@ -270,34 +284,58 @@ class PPOAgent:
         except Exception:
             pass
 
-    def predict(self, state: MDDMCState) -> MDDMCAction:
+    def predict(self, state: MDDMCState, patient_key: str = "default") -> MDDMCAction:
+       
         vec = state.to_vector()
+
+       
+        win = self._state_windows.setdefault(patient_key, [])
+        win.append(vec)
+        if len(win) > self._WINDOW_SIZE:
+            win.pop(0)
+        padded = [win[0]] * (self._WINDOW_SIZE - len(win)) + win  # cold-start pad
+        
 
         use_model = self._net.available and len(self._replay) >= self.min_train_samples
 
         if use_model:
-            if random.random() < self._epsilon:
-                action_idx, log_prob, value = self._biased_heuristic(state)
-                source = "epsilon_explore"
-            else:
-                action_idx, log_prob, value = self._net.predict(vec)
-                source = "rl_model"
-
-            policy = ACTIONS[action_idx % len(ACTIONS)]
-
             try:
                 import torch
                 import torch.nn.functional as F
 
-                x = torch.tensor([vec], dtype=torch.float32).unsqueeze(0)
+                seq    = torch.tensor([padded], dtype=torch.float32)   # (1, T, D)
+                hidden = self._hidden_states.get(patient_key)
+
+                if random.random() < self._epsilon:
+                    action_idx, log_prob, value = self._biased_heuristic(state)[:3]
+                    # Still run a forward pass to keep hidden state current
+                    with torch.no_grad():
+                        _, _, new_hidden = self._net.net(seq, hidden)
+                    source = "epsilon_explore"
+                else:
+                    action_idx, log_prob, value, new_hidden = self._net.predict(seq, hidden)
+                    source = "rl_model"
+
+                # Persist updated hidden state for this patient
+                if new_hidden is not None:
+                    self._hidden_states[patient_key] = (
+                        new_hidden[0].detach(), new_hidden[1].detach()
+                    )
+
+                policy = ACTIONS[action_idx % len(ACTIONS)]
+                # Compute confidence from current hidden state
                 with torch.no_grad():
-                    logits, _ = self._net.net(x)
+                    logits, _, _ = self._net.net(seq, self._hidden_states.get(patient_key))
                 probs = F.softmax(logits[0], dim=-1)
-                confidence = float(probs[action_idx].item())
+                confidence = float(probs[action_idx % len(ACTIONS)].item())
+
             except Exception:
+                action_idx, log_prob, value = self._biased_heuristic(state)[:3]
+                policy = ACTIONS[action_idx]
                 confidence = 0.5
+                source = "fallback_heuristic"
         else:
-            action_idx, log_prob, value = self._biased_heuristic(state)
+            action_idx, log_prob, value = self._biased_heuristic(state)[:3]
             policy = ACTIONS[action_idx]
             confidence = 0.90
             source = "threshold_warmup"
@@ -326,7 +364,7 @@ class PPOAgent:
             action_index=action_idx,
         )
 
-    def _biased_heuristic(self, state: MDDMCState) -> Tuple[int, float, float]:
+    def _biased_heuristic(self, state: MDDMCState) -> Tuple[int, float, float, None]:
         risk = float(state.risk)
         if risk < self.risk_1:
             idx = _WEAK_IDX
@@ -336,7 +374,7 @@ class PPOAgent:
             idx = _PSEUDO_IDX
         else:
             idx = _REDACT_IDX
-        return idx, 0.0, 0.0
+        return idx, 0.0, 0.0, None
 
     def update(self, state: MDDMCState, action: MDDMCAction, reward: float) -> None:
         r = float(reward)
