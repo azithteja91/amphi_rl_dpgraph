@@ -680,12 +680,12 @@ def _write_experiment_report(metrics_rows: List[dict], latency_rows: List[dict],
         "",
         "## Privacy-Utility Results",
         "",
-        "| Policy | Leak Total | Utility Proxy | Mean Latency (ms) | P90 Latency (ms) |",
-        "| --- | --- | --- | --- | --- |",
+        "| Policy | Leak Total | Utility Proxy | P50 Latency (ms) | P90 Latency (ms) | Mean Latency (ms) |",
+        "| --- | --- | --- | --- | --- | --- |",
     ]
     for r in metrics_rows:
         lines.append(
-            f"| {r['policy']} | {r['leak_total']} | {r['utility_proxy']} | {r['mean_latency_ms']} | {r['p90_latency_ms']} |"
+            f"| {r['policy']} | {r['leak_total']} | {r['utility_proxy']} | {r['p50_latency_ms']} | {r['p90_latency_ms']} | {r['mean_latency_ms']} |"
         )
 
     lines += [
@@ -704,13 +704,20 @@ def _write_experiment_report(metrics_rows: List[dict], latency_rows: List[dict],
         "",
         "## Latency Summary",
         "",
-        "| Policy | Mean (ms) | P50 (ms) | P90 (ms) |",
+        "| Policy | P50 (ms) | P90 (ms) | Mean (ms) |",
         "| --- | --- | --- | --- |",
     ]
     for r in latency_rows:
         lines.append(
-            f"| {r['policy']} | {round(float(r['mean_ms']), 3)} | {round(float(r['p50_ms']), 3)} | {round(float(r['p90_ms']), 3)} |"
+            f"| {r['policy']} | {round(float(r['p50_ms']), 3)} | {round(float(r['p90_ms']), 3)} | {round(float(r['mean_ms']), 3)} |"
         )
+
+    lines += [
+        "",
+        "> **Note on adaptive mean latency:** The adaptive policy mean includes a one-time",
+        "> embedding model cold-start (~100–400 ms) on the first cross-modal event.",
+        "> P50 and P90 reflect steady-state throughput and are the representative metrics.",
+    ]
 
     lines += [
         "",
@@ -867,14 +874,15 @@ def main() -> None:
 
     # Print metrics table
     print("\n--- Policy Metrics ---")
-    header = f"{'Policy':<10} {'Leak Total':>12} {'Utility Proxy':>14} {'Mean Lat (ms)':>14} {'P90 Lat (ms)':>13}"
+    header = f"{'Policy':<10} {'Leak Total':>12} {'Utility Proxy':>14} {'P50 Lat (ms)':>14} {'P90 Lat (ms)':>13} {'Mean Lat (ms)':>15}"
     print(header)
     print("-" * len(header))
     for r in metrics_rows:
         print(
             f"{r['policy']:<10} {r['leak_total']:>12.4f} {r['utility_proxy']:>14.6f}"
-            f" {r['mean_latency_ms']:>14.3f} {r['p90_latency_ms']:>13.3f}"
+            f" {r['p50_latency_ms']:>14.3f} {r['p90_latency_ms']:>13.3f} {r['mean_latency_ms']:>15.3f}"
         )
+    print("  (adaptive mean includes one-time embedding model cold-start; P50 is representative)")
 
     print("\nOutputs:")
     print("  policy_metrics.csv")
