@@ -62,12 +62,22 @@ CMOFunction = Callable[[DataBlock, MaskingPolicyContract], DataBlock]
 
 
 class CMORegistry:
-    """Runtime registry for masking operators. Instance-level logs prevent cross-run contamination."""
+    """Runtime registry for masking operators.
 
+    The operator registry (``_registry``) is class-level: operators are
+    registered once at module import time and are intentionally shared.
+
+    Execution logs are instance-level: each ``CMORegistry()`` instance keeps
+    its own log list so test runs and concurrent demo invocations cannot
+    contaminate each other.  Use ``flush_logs()`` to drain and reset.
+    """
+
+    # Shared across all instances — operators registered at module import time.
     _registry: Dict[str, CMOFunction] = {}
 
-    # instance-level log list; class-level only used as fallback for legacy callers
-    _execution_logs: List[MaskingActionLog] = []
+    def __init__(self) -> None:
+        # Per-instance log list — never shared between instances.
+        self._execution_logs: List[MaskingActionLog] = []
 
     @classmethod
     def register(cls, name: str, fn: CMOFunction) -> None:
@@ -81,14 +91,13 @@ class CMORegistry:
     def list_operators(cls) -> List[str]:
         return list(cls._registry.keys())
 
-    @classmethod
     def apply(
-        cls,
+        self,
         name: str,
         data_block: DataBlock,
         policy: MaskingPolicyContract,
     ) -> Tuple[DataBlock, MaskingActionLog]:
-        fn = cls._registry.get(name) or _builtin_redact_cmo
+        fn = self._registry.get(name) or _builtin_redact_cmo
 
         t0 = time.perf_counter()
         input_hash = data_block.content_hash()
@@ -104,13 +113,12 @@ class CMORegistry:
             output_hash=out_block.content_hash(),
             latency_ms=round(latency_ms, 4),
         )
-        cls._execution_logs.append(log)
+        self._execution_logs.append(log)
         return out_block, log
 
-    @classmethod
-    def flush_logs(cls) -> List[MaskingActionLog]:
-        logs = list(cls._execution_logs)
-        cls._execution_logs.clear()
+    def flush_logs(self) -> List[MaskingActionLog]:
+        logs = list(self._execution_logs)
+        self._execution_logs.clear()
         return logs
 
 
@@ -172,6 +180,8 @@ CMORegistry.register("GeneralizeDate", _builtin_weak_cmo)
 CMORegistry.register("PassThrough", _builtin_raw_cmo)
 CMORegistry.register("SyntheticReplacement", _synthetic_cmo)  # synthetic name + date CMO
 
+_default_registry: CMORegistry = CMORegistry()
+
 _POLICY_TO_CMO: Dict[str, str] = {
     "redact": "RedactTextSpan",
     "pseudo": "PseudonymizeID",
@@ -198,5 +208,5 @@ def apply_via_cmo(
         patient_token=patient_token,
         risk_score=risk_score,
     )
-    out_block, log = CMORegistry.apply(cmo_name, block, contract)
+    out_block, log = _default_registry.apply(cmo_name, block, contract)
     return out_block.payload, log
