@@ -68,6 +68,12 @@ def _is_synthetic_match(match_text: str) -> bool:
     if re.fullmatch(r"\d{2}/\d{2}/\d{4}", t) and t in _SYNTHETIC_DATES:
         return True
 
+    # MRN<digits> tokens (no space) are produced exclusively by the synthetic
+    # replacement pipeline (e.g. "MRN0000" -> "MRN5678").  Real PHI always
+    # appears as "MRN <digits>" (space-separated).  Treat these as synthetic.
+    if re.fullmatch(r"MRN[0-9]{1,10}", t, re.IGNORECASE):
+        return True
+
     digits_only = re.sub(r"[^0-9]", "", t)
     if len(digits_only) in range(7, 11):
         if re.fullmatch(r"\d{7,10}", digits_only):
