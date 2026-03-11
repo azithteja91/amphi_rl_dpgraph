@@ -14,6 +14,7 @@ RE_DOB = re.compile(r"(DOB[:\s]\s*)(\d{2}/\d{2}/\d{4})", re.IGNORECASE)
 # ISO date: 2045-07-04 — PHI_PATTERN catches these regardless of context
 RE_DATE_ISO = re.compile(r"\b(\d{4}-\d{2}-\d{2})\b")
 
+# Bare slash date: 01/01/1970 appearing without a DOB prefix.
 # Runs AFTER RE_DOB so it catches any remaining unredacted dates.
 RE_DATE_BARE = re.compile(r"\b(\d{2}/\d{2}/\d{4})\b")
 
@@ -62,6 +63,10 @@ def mask_text_weak(text: str) -> str:
 
 
 def mask_text_pseudo(text: str, patient_token: str) -> str:
+    """
+    Stable pseudonymisation. patient_token includes version suffix so output
+    changes after localized retokenization: PATIENT_123_V0 -> PATIENT_123_V1.
+    """
     t = str(text)
     t = RE_PATIENT_FULL.sub(lambda m: f"{m.group(1)}{patient_token}", t)
     t = RE_PATIENT_FIRST.sub(lambda m: f"{m.group(1)}{patient_token}", t)
