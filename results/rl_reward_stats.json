@@ -1,0 +1,16 @@
+{
+  "torch_available": true,
+  "note": "model_n>0 indicates PPO network drove at least one decision.",
+  "overall_mean": 0.3116,
+  "overall_min": -0.33728,
+  "overall_max": 0.71519,
+  "overall_n": 234,
+  "warmup_mean": 0.50143,
+  "warmup_min": 0.2438,
+  "warmup_max": 0.67695,
+  "warmup_n": 31,
+  "model_mean": 0.28261,
+  "model_min": -0.33728,
+  "model_max": 0.71519,
+  "model_n": 203
+}

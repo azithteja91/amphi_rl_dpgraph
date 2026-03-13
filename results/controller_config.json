@@ -1,0 +1,6 @@
+{
+  "risk_1": 0.4,
+  "risk_mid": 0.6,
+  "risk_2": 0.8,
+  "remask_thresh": 0.68
+}

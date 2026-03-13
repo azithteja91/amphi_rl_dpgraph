@@ -1,0 +1,4 @@
+policy,n_events,n_switches_into,mean_latency_ms,std_latency_ms,ci95_latency_ms,multirun_mean_latency_ms,multirun_ci95_latency_ms,mean_delta_auroc,mean_risk
+synthetic,2,0,41.894,33.159,45.956,17.856,1.599,0.0,0.5105
+pseudo,19,13,80.74,262.007,117.813,17.194,0.087,-0.232,0.856
+redact,13,13,20.227,1.411,0.767,17.321,0.085,-0.6846,0.915

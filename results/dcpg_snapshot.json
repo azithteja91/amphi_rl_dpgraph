@@ -1,0 +1,21 @@
+{
+  "snapshot_id": "snap_1773414245109",
+  "node_summaries": {
+    "A": {
+      "pseudonym_version": 1,
+      "risk": 0.9788,
+      "effective_units": 121,
+      "link_modalities": [
+        "asr_link"
+      ]
+    },
+    "B": {
+      "pseudonym_version": 1,
+      "risk": 0.9714,
+      "effective_units": 111,
+      "link_modalities": [
+        "asr_link"
+      ]
+    }
+  }
+}

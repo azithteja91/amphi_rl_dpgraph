@@ -1,0 +1,33 @@
+{
+  "n_runs": 10,
+  "delta_auroc": {
+    "mean": -0.9167,
+    "std": 0.0,
+    "ci95": 0.0
+  },
+  "policy_switch_rate": {
+    "mean": 0.8364,
+    "std": 0.0256,
+    "ci95": 0.0158
+  },
+  "latency_by_policy": {
+    "synthetic": {
+      "mean_ms": 17.856,
+      "std_ms": 3.648,
+      "ci95_ms": 1.599,
+      "n": 20
+    },
+    "pseudo": {
+      "mean_ms": 17.194,
+      "std_ms": 0.599,
+      "ci95_ms": 0.087,
+      "n": 182
+    },
+    "redact": {
+      "mean_ms": 17.321,
+      "std_ms": 0.509,
+      "ci95_ms": 0.085,
+      "n": 138
+    }
+  }
+}
