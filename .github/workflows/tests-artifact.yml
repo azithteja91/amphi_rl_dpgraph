@@ -30,7 +30,7 @@ jobs:
       - name: Run tests and generate JUnit XML
         run: |
           mkdir -p .artifacts
-          pytest -vv --junitxml .artifacts/pytest.xml
+          pytest tests/ -vv --junitxml .artifacts/pytest.xml
 
       - name: Generate markdown test report
         run: |
